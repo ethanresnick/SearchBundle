@@ -59,6 +59,7 @@ class IndexableHandler
         //a getExtraERDSearchInstructions method. The point of these is that some times the author can't control the
         //annotations on a class property (e.g. if they're from a third-party trait, or the property also has annotations
         //in a parent class, and the developer doesn't want to redefine those, which isn't not DRY)).
+        //@todo Consider making this an annotation, e.g. @Search\Overrider, that could be declared on the function (or something)
         $overrideAnnotations = false;
         if(method_exists($object,'getExtraERDSearchInstructions')) {
             $getter = (new \ReflectionMethod($object, 'getExtraERDSearchInstructions'));
