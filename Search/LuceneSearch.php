@@ -114,7 +114,7 @@ class LuceneSearch extends \EWZ\Bundle\SearchBundle\Lucene\LuceneSearch
             {
                 $matches[1] = (isset($matches[1])) ? $matches[1] : '';
                 $matches[2] = (isset($matches[2])) ? $matches[2] : '';
-                
+
                 $finalQuery = str_replace($matches[1].$matches[2],'('.$word.' OR '.$synonym.')',$finalQuery);
             }
         }
