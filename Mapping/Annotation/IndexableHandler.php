@@ -1,6 +1,6 @@
 <?php
 namespace ERD\SearchBundle\Mapping\Annotation;
-use Doctrine\Common\Annotations\Reader;
+use ERD\AnnotationHelpers\PowerReaderInterface;
 use Doctrine\Common\Annotations\AnnotationException;
 use EWZ\Bundle\SearchBundle\Lucene\Document;
 use ERD\SearchBundle\Mapping\Annotation\Field as FieldAnnotation;
@@ -22,7 +22,7 @@ class IndexableHandler
     private $reader;
     private $fieldFactory;
 
-    public function __construct(Reader $reader, FieldFactory $fieldFactory)
+    public function __construct(PowerReaderInterface $reader, FieldFactory $fieldFactory)
     {
         $this->reader = $reader;
         $this->fieldFactory = $fieldFactory;
@@ -35,52 +35,33 @@ class IndexableHandler
      * @return Document The Lucene document representing it otherwise.
      * @throws \InvalidArgumentException If no Field annotation with the type "key" exists (b/c lucene identifies documents by their "key" field)
      * @throws \InvalidArgumentException If multiple fields with the same name exist on the object
-     * @throws AnnotationException If the entity isn't indexable (i.e. doesn't have an Indexable annotation)
+     * @throws \InvalidArgumentException If the entity isn't indexable (i.e. doesn't have an Indexable annotation)
      * 
      */
     public function loadFieldData($object, Document $document)
-    {        
+    {
+        if(!$this->reader->hasClassAnnotation(new \ReflectionClass($object), $this->documentAnnotationClass, true))
+        {
+            throw new \InvalidArgumentException("Object isn't indexable; must have an Indexable annotation to be used with search.");
+        }
+
         $reflectionObject = new \ReflectionObject($object);
         $properties = $reflectionObject->getProperties();
-        $isIndexable = ($this->reader->getClassAnnotation(new \ReflectionClass($object), $this->documentAnnotationClass)!==null);
-        
-        //do a thorough search for the is indexable annotation
-        while(($reflectionObject = $reflectionObject->getParentClass()) && !$isIndexable)
-        {
-            $isIndexable = ($this->reader->getClassAnnotation($reflectionObject, $this->documentAnnotationClass)!==null);
-        }       
 
-        if(!$isIndexable)
-        {
-            throw new AnnotationException("Object isn't indexable; must have an Indexable annotation to be used with search.");
-        }
-
-        //build a list of "override annotations", which an object can specify by returning annotation objects from
-        //a getExtraERDSearchInstructions method. The point of these is that some times the author can't control the
-        //annotations on a class property (e.g. if they're from a third-party trait, or the property also has annotations
-        //in a parent class, and the developer doesn't want to redefine those, which isn't not DRY)).
-        //@todo Consider making this an annotation, e.g. @Search\Overrider, that could be declared on the function (or something)
-        $overrideAnnotations = false;
-        if(method_exists($object,'getExtraERDSearchInstructions')) {
-            $getter = (new \ReflectionMethod($object, 'getExtraERDSearchInstructions'));
-            $getter->setAccessible(true);
-            $overrideAnnotations = $getter->invoke($object);
-        }
         
         $fieldNames = array();
         foreach ($properties as $reflectionProp) 
         {
-            //read the annotation from the override method if it exists; if not, fall back to a normal property annotation.
-            if(isset($overrideAnnotations[$reflectionProp->getName()])) {
-                $annotation = $overrideAnnotations[$reflectionProp->getName()];
-            }
-            else {
-                $annotation = $this->reader->getPropertyAnnotation($reflectionProp, $this->fieldAnnotationClass);
-            }
+            //only looking at the property in the class where it was defined, read any annotations from
+            //its docblock or class level-annotations referring to the property (to support traits).
+            $annotations = $this->reader->getPropertyAnnotationsFromClass($reflectionProp, $reflectionProp->getDeclaringClass(), $this->fieldAnnotationClass);
 
             //handle the annotation if it's been found.
-            if (null !== $annotation)
+            if ((null !== $annotations) && count($annotations)>0)
             {
+                //we don't support merging annotations yet, so we just use the annotation with the highest precedence
+                $annotation = $annotations[0];
+
                 $reflectionProp->setAccessible(true);
                 $field = $this->buildField($object, $annotation, $reflectionProp);
 
@@ -92,13 +73,14 @@ class IndexableHandler
                 $document->addField($field);
                 $fieldNames[] = $field->name;
             }
+
         }
         
         if(!in_array('key', $fieldNames))
         {
             throw new \InvalidArgumentException('The object must have an annotation designating a "key" field for the document.');
         }
-        
+
         //clean up
         unset($reflectionObject);
         unset($properties);

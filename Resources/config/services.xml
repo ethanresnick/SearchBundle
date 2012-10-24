@@ -33,7 +33,7 @@
         <service id="erd_search.aggregate_synonym_provider" class="%erd_search.aggregate_synonym_provider.class%" public="false" />
 
         <service id="erd_search.indexable_handler" class="%erd_search.indexable_handler.class%" public="false">
-            <argument type="service" id="annotations.file_cache_reader" />
+            <argument type="service" id="annotation_reader" />
             <argument type="service" id="erd_search.field_factory" />
         </service>        
 
