@@ -74,7 +74,7 @@ class IndexManager
                 $document = $this->indexableHandler->loadFieldData($entity, new Document());
                 $this->ls->addDocument($document);
             }
-            catch(\Doctrine\Common\Annotations\AnnotationException $e) {}
+            catch(\Exception $e) {}
         }
     }
     
@@ -87,7 +87,7 @@ class IndexManager
                 $document = $this->indexableHandler->loadFieldData($entity, new Document());
                 $this->ls->updateDocument($document); 
             }
-            catch(\Doctrine\Common\Annotations\AnnotationException $e) {}
+            catch(\Exception $e) {}
         }            
     }
     
@@ -100,7 +100,7 @@ class IndexManager
                 $document = $this->indexableHandler->loadFieldData($entity, new Document());
                 $this->ls->deleteDocument($document); 
             }
-            catch(\Doctrine\Common\Annotations\AnnotationException $e) {}
+            catch(\Exception $e) {}
         } 
     }
 }
